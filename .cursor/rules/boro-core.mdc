@@ -1,0 +1,27 @@
+---
+description: Boro core product philosophy and agent guardrails
+alwaysApply: true
+---
+
+# Boro — core
+
+You are working on **Boro** (boro.proektmap.ru): a local P2P listings loop for **Боровичи**, not a marketplace.
+
+Before coding, read `AGENTS.md` and `docs/PHILOSOPHY.md` if the task touches product behavior.
+
+## Never build
+
+Cart, checkout, payments, categories taxonomy, in-app chat, CRM, multi-vendor billing.
+
+## Always respect
+
+- Web create is primary; contacts need WhatsApp or phone.
+- Sold = remove from site + mark TG/VK; Delete = remove site + delete channel posts.
+- Keep TG/VK posts compact (buttons, not spam threads).
+- Do not commit `.env*` or tokens.
+- Do not push to GitHub unless the user explicitly asks.
+- Deploy on this host: `npm run build` && `pm2 restart boro --update-env`.
+
+## Stack stay lean
+
+Next.js App Router, Supabase, Zod. No Prisma/Zustand for MVP.

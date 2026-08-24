@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Boro
 
-## Getting Started
+Личная барахолка **Боровичей** · https://boro.proektmap.ru
 
-First, run the development server:
+> Сфоткал → написал → цена → карточка + TG/VK → сделка в личке.
+
+Философия: [docs/PHILOSOPHY.md](./docs/PHILOSOPHY.md) · Спека: [PROJECT_SPEC.md](./PROJECT_SPEC.md) · Агентам: [AGENTS.md](./AGENTS.md)
+
+## Стек
+
+Next.js 15 (App Router) · TypeScript · Tailwind · shadcn/ui · Supabase · Zod  
+Хост: nginx → PM2 `boro` → порт **3050**
+
+## Быстрый старт (сервер)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd /var/www/www-root/data/www/boro.proektmap.ru
+cp .env.example .env.local   # заполнить ключи
+npm install
+npm run build
+pm2 restart boro --update-env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+SQL: файлы в `supabase/` → Supabase SQL Editor.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Что уже работает (Phase 0)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Auth + онбординг профиля
+- Создание лота (сжатие фото, upload)
+- Карточка `/i/[id]`, карусель, шаринг (VK / MAX / TG)
+- Клип 9:16 из фото (опционально) + музыка Mixkit
+- Автопост Telegram `@boroboroxolka`
+- Автопост VK `borovichi_site` (фото в посте при user-токене)
+- Продано / Удалить с синхронизацией зеркал
 
-## Learn More
+## Документация
 
-To learn more about Next.js, take a look at the following resources:
+| Файл | Содержание |
+|------|------------|
+| [docs/PHILOSOPHY.md](./docs/PHILOSOPHY.md) | Зачем и границы продукта |
+| [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) | Git, день, деплой |
+| [docs/LOGISTICS.md](./docs/LOGISTICS.md) | Логистика фич |
+| [docs/TG_SHARE_LOGISTICS.md](./docs/TG_SHARE_LOGISTICS.md) | Telegram + share |
+| [docs/VK_AUTOPOST.md](./docs/VK_AUTOPOST.md) | VK автопост |
+| [AGENTS.md](./AGENTS.md) | Инструкции для AI-агентов |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Git
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Сейчас локальный `main`. GitHub подключаем отдельно (см. DEVELOPMENT.md).
