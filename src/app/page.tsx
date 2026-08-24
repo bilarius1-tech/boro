@@ -1,59 +1,79 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { AppShell } from "@/components/app-shell";
+import { FeedTimeline } from "@/components/feed-timeline";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_CITY, SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
+import {
+  DEFAULT_CITY,
+  SITE_BETA,
+  SITE_NAME,
+  SITE_OFFER,
+  SITE_TAGLINE,
+} from "@/lib/constants";
+import { getFeedPage } from "@/lib/listings";
 import { getCurrentProfile, getSessionUser } from "@/lib/profile";
+
+export const metadata: Metadata = {
+  title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+  description: SITE_OFFER,
+};
 
 export default async function Home() {
   const user = await getSessionUser();
   const profile = user ? await getCurrentProfile() : null;
+  const { items, nextCursor } = await getFeedPage({ limit: 8 });
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-between px-5 py-8">
-      <header className="space-y-2 pt-6">
-        <p className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
-          {DEFAULT_CITY}
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-          {SITE_NAME}
-        </h1>
-        <p className="max-w-sm text-base leading-relaxed text-muted-foreground">
-          {SITE_TAGLINE}. Сфоткал, написал пару слов, поставил цену — и лот в
-          ленте и в Telegram-канале.
-        </p>
+    <AppShell username={profile?.username}>
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/90 px-5 py-3 backdrop-blur-md">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
+              {DEFAULT_CITY}
+            </p>
+            <p className="text-xl font-semibold tracking-tight">{SITE_NAME}</p>
+          </div>
+          {profile ? (
+            <Button asChild size="sm" className="h-9 rounded-full px-4">
+              <Link href="/new">+ Разместить</Link>
+            </Button>
+          ) : (
+            <Button asChild size="sm" variant="outline" className="h-9 rounded-full px-4">
+              <Link href="/signup">Войти в бету</Link>
+            </Button>
+          )}
+        </div>
       </header>
 
-      <section className="space-y-3 py-10">
-        {profile ? (
-          <>
-            <Button asChild className="h-12 w-full text-base">
-              <Link href="/new">+ Добавить вещь</Link>
-            </Button>
-            <Button asChild variant="outline" className="h-12 w-full text-base">
-              <Link href={`/u/${profile.username}`}>Мой профиль</Link>
-            </Button>
-          </>
-        ) : user ? (
-          <Button asChild className="h-12 w-full text-base">
-            <Link href="/onboarding">Заполнить профиль</Link>
-          </Button>
-        ) : (
-          <>
-            <Button asChild className="h-12 w-full text-base">
-              <Link href="/signup">Создать аккаунт</Link>
-            </Button>
-            <Button asChild variant="outline" className="h-12 w-full text-base">
-              <Link href="/login">Войти</Link>
-            </Button>
-          </>
-        )}
-        <p className="text-center text-xs text-muted-foreground">
-          Phase 0 · личная барахолка {DEFAULT_CITY}
+      <section className="space-y-3 px-5 py-6">
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-balance">
+          {SITE_TAGLINE}
+        </h1>
+        <p className="max-w-md text-[15px] leading-relaxed text-muted-foreground">
+          {SITE_OFFER}
         </p>
+        <p className="rounded-xl bg-muted/70 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+          {SITE_BETA}
+        </p>
+        {!profile ? (
+          <div className="flex gap-2 pt-1">
+            <Button asChild className="h-11 flex-1">
+              <Link href="/signup">Разместить</Link>
+            </Button>
+            <Button asChild variant="outline" className="h-11 flex-1">
+              <Link href="#feed">Смотреть ленту</Link>
+            </Button>
+          </div>
+        ) : null}
       </section>
 
-      <footer className="pb-2 text-center text-xs text-muted-foreground">
-        boro.proektmap.ru · {DEFAULT_CITY}, Новгородская область
-      </footer>
-    </main>
+      <div id="feed">
+        <div className="flex items-center justify-between border-y border-border/70 px-5 py-2.5">
+          <p className="text-sm font-medium">Лента города</p>
+          <p className="text-xs text-muted-foreground">{DEFAULT_CITY}</p>
+        </div>
+        <FeedTimeline initialItems={items} initialCursor={nextCursor} />
+      </div>
+    </AppShell>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ListingCard } from "@/components/listing-card";
+import { AppShell } from "@/components/app-shell";
 import { getCurrentProfile, getProfileByUsername } from "@/lib/profile";
 import { getListingsByUserId } from "@/lib/listings";
 import { telegramLink, telLink, whatsappLink } from "@/lib/contacts";
@@ -34,7 +35,8 @@ export default async function PublicProfilePage({ params }: Props) {
   });
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-5 py-8">
+    <AppShell username={me?.username}>
+    <main className="flex min-h-dvh w-full flex-col px-5 py-8">
       <header className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">{profile.city}</p>
@@ -138,5 +140,6 @@ export default async function PublicProfilePage({ params }: Props) {
         <div className="mt-auto pt-10" />
       )}
     </main>
+    </AppShell>
   );
 }

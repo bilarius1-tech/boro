@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { MediaCarousel } from "@/components/media-carousel";
 import { ShareButton } from "@/components/share-button";
 import { OwnerListingActions } from "@/components/owner-listing-actions";
+import { AppShell } from "@/components/app-shell";
 import { getListingById } from "@/lib/listings";
 import { getCurrentProfile } from "@/lib/profile";
 import { formatPriceRub } from "@/lib/money";
@@ -88,7 +89,8 @@ export default async function ListingPage({ params }: Props) {
   const contactText = `Привет! Интересует «${listing.title}» за ${formatPriceRub(listing.price)} на Boro`;
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col pb-28">
+    <AppShell username={me?.username}>
+    <main className="flex min-h-dvh w-full flex-col pb-28">
       <div className="flex items-center justify-between px-5 py-4">
         <Link
           href={`/u/${seller.username}`}
@@ -156,7 +158,10 @@ export default async function ListingPage({ params }: Props) {
       </div>
 
       {!isOwner ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-5 py-3 backdrop-blur">
+        <div
+          className="fixed inset-x-0 z-30 border-t border-border bg-background/95 px-5 py-3 backdrop-blur"
+          style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+        >
           <div className="mx-auto flex w-full max-w-lg flex-col gap-2">
             {seller.whatsapp_number ? (
               <Button asChild className="h-12 w-full text-base">
@@ -191,5 +196,6 @@ export default async function ListingPage({ params }: Props) {
         </div>
       ) : null}
     </main>
+    </AppShell>
   );
 }

@@ -7,7 +7,14 @@ alwaysApply: true
 
 You are working on **Boro** (boro.proektmap.ru): a local P2P listings loop for **Боровичи**, not a marketplace.
 
-Before coding, read `AGENTS.md` and `docs/PHILOSOPHY.md` if the task touches product behavior.
+Before coding, read `AGENTS.md`, `docs/DEVLOG.md` (current priority), and `docs/PHILOSOPHY.md` if the task touches product behavior.
+
+## Current priority
+
+1. Home wow-offer + beta copy on signup  
+2. Social-style infinite feed + app shell  
+3. Soft launch with real listings  
+Do not start music picker / AI / categories before 1–2.
 
 ## Never build
 

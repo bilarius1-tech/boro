@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
-import { DEFAULT_CITY, SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
+import { SITE_NAME, SITE_OFFER, SITE_TAGLINE } from "@/lib/constants";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -9,11 +9,14 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: `${SITE_NAME} — ${DEFAULT_CITY}`,
-  description: SITE_TAGLINE,
+  title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+  description: SITE_OFFER,
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://boro.proektmap.ru"
   ),
+  other: {
+    "theme-color": "#ffffff",
+  },
 };
 
 export default function RootLayout({

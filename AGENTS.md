@@ -12,7 +12,17 @@
 
 Философия и границы продукта: [docs/PHILOSOPHY.md](./docs/PHILOSOPHY.md)  
 Спека: [PROJECT_SPEC.md](./PROJECT_SPEC.md)  
-Разработка / день / деплой: [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)
+Разработка / день / деплой: [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)  
+**Текущий этап / брифы:** [docs/DEVLOG.md](./docs/DEVLOG.md) ← читать агентам в первую очередь по приоритетам
+
+## Текущий приоритет (не сбиваться)
+
+1. Вау-офер на главной + бета на регистрации (см. DEVLOG).  
+2. Лента с infinite scroll, app-shell «как приложение».  
+3. Потом мягкий запуск реальными лотами.  
+4. GitHub push — когда у owner подтверждён телефон.  
+
+Не начинать музыку / AI / категории, пока не закрыты п.1–2.
 
 ## Жёсткие правила продукта
 

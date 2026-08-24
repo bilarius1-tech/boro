@@ -30,7 +30,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <CardDescription>
           {mode === "login"
             ? "Войдите, чтобы управлять своими лотами в Боровичах."
-            : "Создайте аккаунт Boro — потом заполните профиль и контакты."}
+            : "Пока бета: скоро откроем весь функционал. Сохрани ссылку и поделись с другими."}
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
