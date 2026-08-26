@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import { FeedTimeline } from "@/components/feed-timeline";
+import { PwaInstallButton } from "@/components/pwa-install";
 import { Button } from "@/components/ui/button";
 import {
   DEFAULT_CITY,
@@ -55,6 +56,14 @@ export default async function Home() {
         <p className="rounded-xl bg-muted/70 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
           {SITE_BETA}
         </p>
+
+        <div className="space-y-2 pt-1">
+          <PwaInstallButton className="h-11 w-full" />
+          <p className="text-center text-[11px] text-muted-foreground">
+            Установи Boro на телефон — иконка на экране, сразу в ленту города
+          </p>
+        </div>
+
         {!profile ? (
           <div className="flex gap-2 pt-1">
             <Button asChild className="h-11 flex-1">
