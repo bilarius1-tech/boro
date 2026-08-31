@@ -46,6 +46,7 @@
 - [x] Auth Supabase · onboarding · `/u/[username]`
 - [x] Create `/new` · compress · API upload
 - [x] Карточка · карусель · share sheet
+- [x] Редактирование объявления `/i/[id]/edit` · выбор главного фото в слайдере · мобильная загрузка
 - [x] Клип Ken Burns 9:16 + typewriter + Mixkit
 - [x] TG автопост (кнопки, без сырого URL-спама)
 - [x] VK автопост (фото в посте + sold/delete)

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteListing, markListingSold } from "@/app/actions/listings";
 
@@ -86,6 +88,12 @@ export function OwnerListingActions({ listingId }: { listingId: string }) {
 
   return (
     <div className="flex flex-col gap-2 pt-2">
+      <Button asChild variant="outline" className="h-11 w-full gap-2 text-foreground font-medium">
+        <Link href={`/i/${listingId}/edit`}>
+          <Pencil className="size-4" />
+          Редактировать
+        </Link>
+      </Button>
       <Button
         type="button"
         className="h-11 w-full"

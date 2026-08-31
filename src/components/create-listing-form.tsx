@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -16,19 +16,38 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { compressImage } from "@/lib/compress-image";
-import { X } from "lucide-react";
+import {
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  X,
+} from "lucide-react";
 
 const MAX_PHOTOS = 7;
 
-type Preview = { file: File; url: string };
+type Preview = { file: File; url: string; id: string };
 
 export function CreateListingForm({ userId: _userId }: { userId: string }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [previews, setPreviews] = useState<Preview[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [wantClip, setWantClip] = useState(false);
+
+  const previewsRef = useRef(previews);
+  previewsRef.current = previews;
+
+  useEffect(() => {
+    return () => {
+      previewsRef.current.forEach((p) => {
+        URL.revokeObjectURL(p.url);
+      });
+    };
+  }, []);
 
   const canClip = previews.length >= 2;
 
@@ -39,7 +58,7 @@ export function CreateListingForm({ userId: _userId }: { userId: string }) {
       return `Клип из ${previews.length} фото (~${(previews.length * 1.6).toFixed(0)} сек) + музыка.`;
     if (previews.length === 1)
       return "Добавь ещё фото, если хочешь клип.";
-    return `${previews.length} из ${MAX_PHOTOS}. Можно опубликовать как фото или клип.`;
+    return `${previews.length} из ${MAX_PHOTOS}. Первое фото станет обложкой.`;
   }, [previews.length, wantClip, canClip]);
 
   function onPick(files: FileList | null) {
@@ -52,9 +71,16 @@ export function CreateListingForm({ userId: _userId }: { userId: string }) {
         setError("Только изображения");
         continue;
       }
-      next.push({ file, url: URL.createObjectURL(file) });
+      next.push({
+        file,
+        url: URL.createObjectURL(file),
+        id: crypto.randomUUID(),
+      });
     }
     setPreviews(next);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
 
   function removeAt(index: number) {
@@ -62,6 +88,26 @@ export function CreateListingForm({ userId: _userId }: { userId: string }) {
       const copy = [...prev];
       URL.revokeObjectURL(copy[index].url);
       copy.splice(index, 1);
+      return copy;
+    });
+  }
+
+  function makePrimary(index: number) {
+    if (index === 0) return;
+    setPreviews((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.unshift(item);
+      return copy;
+    });
+  }
+
+  function move(from: number, to: number) {
+    if (to < 0 || to >= previews.length) return;
+    setPreviews((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(from, 1);
+      copy.splice(to, 0, item);
       return copy;
     });
   }
@@ -147,17 +193,54 @@ export function CreateListingForm({ userId: _userId }: { userId: string }) {
       </CardHeader>
       <form onSubmit={onSubmit}>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="photos">Фото (1–7)</Label>
-            <Input
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">
+                Фото ({previews.length} из {MAX_PHOTOS})
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                {previews.length === 0 ? "Обязательно" : "Первое — обложка"}
+              </span>
+            </div>
+
+            {/* Hidden native input */}
+            <input
+              ref={fileInputRef}
               id="photos"
               type="file"
               accept="image/jpeg,image/png,image/webp,image/*"
               multiple
+              className="hidden"
               onChange={(e) => onPick(e.target.files)}
-              disabled={busy}
+              disabled={busy || previews.length >= MAX_PHOTOS}
             />
+
+            {/* Prominent Upload Button (Mobile-first with camera icon) */}
+            {previews.length < MAX_PHOTOS ? (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={busy}
+                className="group flex w-full items-center justify-center gap-3.5 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-4 text-primary transition-all hover:border-primary hover:bg-primary/10 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
+              >
+                <div className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary shadow-xs group-hover:bg-primary/20">
+                  <Camera className="size-6" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-foreground">
+                    {previews.length === 0
+                      ? "Загрузить фото"
+                      : "Добавить ещё фото"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Сделать снимок на телефон или выбрать из галереи
+                  </p>
+                </div>
+              </button>
+            ) : null}
+
             <p className="text-xs text-muted-foreground">{hint}</p>
+
             {canClip ? (
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
@@ -192,32 +275,91 @@ export function CreateListingForm({ userId: _userId }: { userId: string }) {
                 </button>
               </div>
             ) : null}
+
             {previews.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                {previews.map((p, i) => (
-                  <div
-                    key={p.url}
-                    className="relative aspect-square overflow-hidden rounded-lg bg-muted"
-                  >
-                    <Image
-                      src={p.url}
-                      alt={`Фото ${i + 1}`}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                    {!busy ? (
-                      <button
-                        type="button"
-                        onClick={() => removeAt(i)}
-                        className="absolute top-1 right-1 rounded-full bg-black/55 p-1 text-white"
-                        aria-label="Удалить"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3">
+                {previews.map((p, i) => {
+                  const isPrimary = i === 0;
+                  return (
+                    <div
+                      key={p.id}
+                      className={`relative flex flex-col overflow-hidden rounded-xl border bg-card transition-all ${
+                        isPrimary
+                          ? "border-primary ring-2 ring-primary/30"
+                          : "border-border/80"
+                      }`}
+                    >
+                      <div className="relative aspect-square w-full overflow-hidden bg-muted">
+                        <Image
+                          src={p.url}
+                          alt={`Фото ${i + 1}`}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+
+                        {isPrimary ? (
+                          <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-md bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground shadow-sm">
+                            <Star className="size-3 fill-current" />
+                            Главное
+                          </div>
+                        ) : null}
+
+                        {!busy ? (
+                          <button
+                            type="button"
+                            onClick={() => removeAt(i)}
+                            className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                            aria-label="Удалить"
+                            title="Удалить фото"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        ) : null}
+
+                        <div className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => move(i, i - 1)}
+                            disabled={busy || i === 0}
+                            className="flex size-6 items-center justify-center rounded-md bg-black/60 text-white backdrop-blur-sm transition-opacity hover:bg-black/80 disabled:opacity-20"
+                            title="Сдвинуть влево"
+                          >
+                            <ChevronLeft className="size-4" />
+                          </button>
+                          <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                            #{i + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => move(i, i + 1)}
+                            disabled={busy || i === previews.length - 1}
+                            className="flex size-6 items-center justify-center rounded-md bg-black/60 text-white backdrop-blur-sm transition-opacity hover:bg-black/80 disabled:opacity-20"
+                            title="Сдвинуть вправо"
+                          >
+                            <ChevronRight className="size-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {!isPrimary ? (
+                        <button
+                          type="button"
+                          onClick={() => makePrimary(i)}
+                          disabled={busy}
+                          className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-muted/40 py-2 text-xs font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary active:bg-primary/20"
+                        >
+                          <Star className="size-3.5" />
+                          Сделать главным
+                        </button>
+                      ) : (
+                        <div className="flex w-full items-center justify-center border-t border-primary/20 bg-primary/10 py-2 text-xs font-medium text-primary">
+                          Главное фото
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
           </div>
@@ -275,7 +417,7 @@ export function CreateListingForm({ userId: _userId }: { userId: string }) {
         </CardContent>
         <CardFooter>
           <Button
-            className="h-11 w-full"
+            className="h-11 w-full text-base font-medium"
             type="submit"
             disabled={busy || previews.length === 0}
           >
