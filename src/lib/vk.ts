@@ -4,6 +4,11 @@ import { formatPriceRub } from "@/lib/money";
 const VK_API = "https://api.vk.com/method";
 const VK_VERSION = "5.199";
 
+/** Pause between photo uploads — rapid bursts trip VK flood control (error 9). */
+const PHOTO_UPLOAD_GAP_MS = 1200;
+const FLOOD_RETRIES = 4;
+const FLOOD_BASE_DELAY_MS = 8000;
+
 type PostInput = {
   title: string;
   price: number;
@@ -22,7 +27,7 @@ export type VkPostResult = {
 /**
  * Full cycle (photos in post + wall.edit/delete) needs VK_USER_ACCESS_TOKEN
  * (user token of a group admin, scopes: wall,photos,offline,groups).
- * Community key alone can only wall.post text + comments.
+ * Community key can wall.post text (and comments); not photos.getWallUploadServer.
  */
 function vkConfig() {
   const communityToken = process.env.VK_ACCESS_TOKEN?.trim() || null;
@@ -34,22 +39,28 @@ function vkConfig() {
   return {
     communityToken,
     userToken,
-    /** Prefer user token for wall/photos; fall back to community */
-    token: userToken || communityToken!,
     groupId: groupIdRaw ? Number(groupIdRaw) : null,
     screen,
   };
 }
 
-async function vkCall<T>(
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+class VkApiError extends Error {
+  code: number;
+  constructor(method: string, code: number, msg?: string) {
+    super(`VK ${method}: ${msg || code}`);
+    this.code = code;
+  }
+}
+
+async function vkCallOnce<T>(
   method: string,
   params: Record<string, string | number | undefined>,
-  tokenOverride?: string | null
+  token: string
 ): Promise<T> {
-  const cfg = vkConfig();
-  if (!cfg) throw new Error("VK not configured");
-  const token = tokenOverride || cfg.token;
-
   const body = new URLSearchParams();
   body.set("access_token", token);
   body.set("v", VK_VERSION);
@@ -67,11 +78,38 @@ async function vkCall<T>(
     error?: { error_msg?: string; error_code?: number };
   };
   if (json.error) {
-    throw new Error(
-      `VK ${method}: ${json.error.error_msg || json.error.error_code}`
+    throw new VkApiError(
+      method,
+      json.error.error_code ?? 0,
+      json.error.error_msg
     );
   }
   return json.response as T;
+}
+
+/** Retry on flood control (9) and too many requests (6 / 29). */
+async function vkCall<T>(
+  method: string,
+  params: Record<string, string | number | undefined>,
+  token: string
+): Promise<T> {
+  let last: unknown;
+  for (let attempt = 0; attempt <= FLOOD_RETRIES; attempt++) {
+    try {
+      return await vkCallOnce<T>(method, params, token);
+    } catch (e) {
+      last = e;
+      const code = e instanceof VkApiError ? e.code : 0;
+      const retryable = code === 9 || code === 6 || code === 29;
+      if (!retryable || attempt === FLOOD_RETRIES) throw e;
+      const wait = FLOOD_BASE_DELAY_MS * Math.pow(2, attempt);
+      console.warn(
+        `VK ${method} flood/rate (${code}), retry ${attempt + 1}/${FLOOD_RETRIES} in ${wait}ms`
+      );
+      await sleep(wait);
+    }
+  }
+  throw last;
 }
 
 async function resolveGroupId(): Promise<number> {
@@ -79,9 +117,11 @@ async function resolveGroupId(): Promise<number> {
   if (!cfg) throw new Error("VK not configured");
   if (cfg.groupId && Number.isFinite(cfg.groupId)) return cfg.groupId;
 
+  const token = cfg.communityToken || cfg.userToken!;
   const resolved = await vkCall<{ type: string; object_id: number } | undefined>(
     "utils.resolveScreenName",
-    { screen_name: cfg.screen }
+    { screen_name: cfg.screen },
+    token
   );
   if (!resolved || resolved.type !== "group" || !resolved.object_id) {
     throw new Error(`VK group not found: ${cfg.screen}`);
@@ -172,7 +212,15 @@ function photoAttachmentsFromPost(item: {
   return atts.join(",");
 }
 
-/** Mirror listing to VK community wall. */
+/**
+ * Mirror listing to VK community wall.
+ *
+ * Strategy (VK Aug 2025+ rules):
+ * - Never pass listing URL as `attachments` — portrait OG images fail
+ *   `link_photo_sizing_rule` and the whole wall.post dies.
+ * - Prefer community token for wall.post (stable; user token often floods).
+ * - Photos only via user token, with gaps + flood retries; text-only is OK fallback.
+ */
 export async function postListingToVk(
   input: PostInput
 ): Promise<VkPostResult | null> {
@@ -185,31 +233,59 @@ export async function postListingToVk(
     const attachments: string[] = [];
 
     if (cfg.userToken) {
-      for (const url of input.photoUrls.slice(0, 10)) {
-        const att = await uploadWallPhoto(groupId, url, cfg.userToken);
+      const urls = input.photoUrls.slice(0, 10);
+      for (let i = 0; i < urls.length; i++) {
+        if (i > 0) await sleep(PHOTO_UPLOAD_GAP_MS);
+        const att = await uploadWallPhoto(groupId, urls[i], cfg.userToken);
         if (att) attachments.push(att);
+      }
+      if (!attachments.length) {
+        console.warn(
+          "VK: фото не загрузились (flood/права) — публикуем текст + ссылку"
+        );
       }
     } else {
       console.warn(
-        "VK: нет VK_USER_ACCESS_TOKEN — пост без вложений (только ссылка)"
+        "VK: нет VK_USER_ACCESS_TOKEN — пост без вложений (только ссылка в тексте)"
       );
     }
 
-    // Post as group: user token (admin) preferred so attachments stick
-    const postToken = cfg.userToken || cfg.communityToken!;
-    const post = await vkCall<{ post_id: number }>(
-      "wall.post",
-      {
-        owner_id: ownerId,
-        from_group: 1,
-        message: buildMessage(input),
-        attachments: attachments.length ? attachments.join(",") : undefined,
-        guid: `boro-${Date.now()}`,
-      },
-      postToken
-    );
+    const message = buildMessage(input);
+    const postParams: Record<string, string | number | undefined> = {
+      owner_id: ownerId,
+      from_group: 1,
+      message,
+      guid: `boro-${Date.now()}`,
+    };
+    // Only real photo attachments — never raw URL (link_photo_sizing_rule)
+    if (attachments.length) {
+      postParams.attachments = attachments.join(",");
+    }
 
-    if (!post?.post_id) return null;
+    // Community token first (wall.post works); user token as fallback
+    const tokens = [cfg.communityToken, cfg.userToken].filter(
+      Boolean
+    ) as string[];
+    let post: { post_id: number } | null = null;
+    let lastErr: unknown;
+    for (const token of tokens) {
+      try {
+        post = await vkCall<{ post_id: number }>(
+          "wall.post",
+          postParams,
+          token
+        );
+        break;
+      } catch (e) {
+        lastErr = e;
+        console.warn("VK wall.post attempt failed", e);
+      }
+    }
+
+    if (!post?.post_id) {
+      if (lastErr) throw lastErr;
+      return null;
+    }
     return { postId: post.post_id, ownerId };
   } catch (e) {
     console.error("vk post failed", e);
@@ -279,16 +355,18 @@ export async function markVkSold(
       return;
     }
 
-    await vkCall(
-      "wall.createComment",
-      {
-        owner_id: oid,
-        post_id: postId,
-        from_group: groupId,
-        message: "✅ ПРОДАНО",
-      },
-      cfg.communityToken
-    );
+    if (cfg.communityToken) {
+      await vkCall(
+        "wall.createComment",
+        {
+          owner_id: oid,
+          post_id: postId,
+          from_group: groupId,
+          message: "✅ ПРОДАНО",
+        },
+        cfg.communityToken
+      );
+    }
   } catch (e) {
     console.error("vk mark sold failed", e);
   }
@@ -314,16 +392,18 @@ export async function deleteVkPost(
       return;
     }
 
-    await vkCall(
-      "wall.createComment",
-      {
-        owner_id: oid,
-        post_id: postId,
-        from_group: groupId,
-        message: "🚫 Снято с Boro",
-      },
-      cfg.communityToken
-    );
+    if (cfg.communityToken) {
+      await vkCall(
+        "wall.createComment",
+        {
+          owner_id: oid,
+          post_id: postId,
+          from_group: groupId,
+          message: "🚫 Снято с Boro",
+        },
+        cfg.communityToken
+      );
+    }
   } catch (e) {
     console.error("vk delete failed", e);
   }

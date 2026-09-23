@@ -23,12 +23,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     listing.description?.slice(0, 160) ||
     `${listing.title} за ${price} · Боровичи · Boro`;
-  // Direct photo URL — VK/Max fetch this more reliably than Next OG route
-  const photo =
-    listing.listing_media.find((m) => m.type === "image")?.url ||
-    listing.listing_media[0]?.url ||
-    undefined;
   const pageUrl = `https://boro.proektmap.ru/i/${listing.id}`;
+  // Landscape 1200×630 — portrait OG fails VK link_photo_sizing_rule
+  const vkOg = `https://boro.proektmap.ru/api/og/vk/${listing.id}`;
 
   return {
     title,
@@ -40,30 +37,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: pageUrl,
       siteName: "Boro",
       locale: "ru_RU",
-      images: photo
-        ? [
-            {
-              url: photo,
-              width: 960,
-              height: 1200,
-              alt: listing.title,
-              type: "image/jpeg",
-            },
-          ]
-        : undefined,
+      images: [
+        {
+          url: vkOg,
+          width: 1200,
+          height: 630,
+          alt: listing.title,
+          type: "image/jpeg",
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: photo ? [photo] : undefined,
+      images: [vkOg],
     },
-    other: photo
-      ? {
-          // VK-specific hints (ignored by others)
-          "vk:image": photo,
-        }
-      : undefined,
+    other: {
+      "vk:image": vkOg,
+    },
   };
 }
 
@@ -82,10 +74,11 @@ export default async function ListingPage({ params }: Props) {
 
   const shareUrl = `https://boro.proektmap.ru/i/${listing.id}`;
   const shareTitle = `${listing.title} — ${formatPriceRub(listing.price)}`;
-  const shareImage =
-    listing.listing_media.find((m) => m.type === "image")?.url ||
-    listing.listing_media[0]?.url ||
-    null;
+  const vkImageUrl = `https://boro.proektmap.ru/api/og/vk/${listing.id}`;
+  const vkPostUrl =
+    listing.vk_post_id && listing.vk_owner_id
+      ? `https://vk.com/wall${listing.vk_owner_id}_${listing.vk_post_id}`
+      : null;
   const contactText = `Привет! Интересует «${listing.title}» за ${formatPriceRub(listing.price)} на Boro`;
 
   return (
@@ -121,7 +114,13 @@ export default async function ListingPage({ params }: Props) {
           </Link>
         </p>
 
-        <ShareButton title={shareTitle} url={shareUrl} imageUrl={shareImage} />
+        <ShareButton
+          title={shareTitle}
+          url={shareUrl}
+          description={listing.description}
+          vkImageUrl={vkImageUrl}
+          vkPostUrl={vkPostUrl}
+        />
 
         {listing.clip_status === "pending" ? (
           <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">

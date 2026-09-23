@@ -24,6 +24,8 @@ export type Listing = {
   status: ListingStatus;
   telegram_message_id: number | null;
   telegram_message_ids?: number[] | null;
+  vk_post_id?: number | null;
+  vk_owner_id?: number | null;
   clip_url?: string | null;
   clip_status?: ClipStatus;
   created_at: string;

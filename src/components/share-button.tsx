@@ -10,13 +10,22 @@ const PROMO =
 export function ShareButton({
   title,
   url,
-  imageUrl,
+  description,
+  vkImageUrl,
+  vkPostUrl,
   className,
 }: {
   title: string;
   url: string;
-  /** Direct photo URL — critical for VK/Max preview */
-  imageUrl?: string | null;
+  /** Short text for VK share preview */
+  description?: string | null;
+  /**
+   * Landscape preview (≥500px, ratio 1:1…1:2.5). Required for wall share —
+   * portrait OG makes VK offer only messages.
+   */
+  vkImageUrl?: string | null;
+  /** Direct wall post in Boro group — native VK «поделиться» works from there */
+  vkPostUrl?: string | null;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -36,22 +45,34 @@ export function ShareButton({
     }
   }
 
-  /** VK share dialog — wall, group, or message */
-  function shareVk() {
+  /**
+   * Share to own wall (and friends). noparse + landscape image — without this
+   * VK falls back to messenger-only after Aug 2025 sizing rules.
+   */
+  function shareVkWall() {
     const u = new URL("https://vk.com/share.php");
     u.searchParams.set("url", url);
-    u.searchParams.set("title", title);
+    u.searchParams.set("title", title.slice(0, 128));
     u.searchParams.set(
-      "comment",
-      "Боровичи · хочешь выложить своё? boro.proektmap.ru — фото, цена, и готово."
+      "description",
+      (description?.trim() || PROMO.replace(/\n/g, " ")).slice(0, 256)
     );
-    if (imageUrl) u.searchParams.set("image", imageUrl);
-    u.searchParams.set("noparse", "0");
-    window.open(u.toString(), "_blank", "noopener,noreferrer,width=640,height=720");
+    if (vkImageUrl) u.searchParams.set("image", vkImageUrl);
+    u.searchParams.set("noparse", "true");
+    window.open(
+      u.toString(),
+      "_blank",
+      "noopener,noreferrer,width=640,height=720"
+    );
     setOpen(false);
   }
 
-  /** Max: text+url deeplink (preview comes from OG when they open link) */
+  function openVkGroupPost() {
+    if (!vkPostUrl) return;
+    window.open(vkPostUrl, "_blank", "noopener,noreferrer");
+    setOpen(false);
+  }
+
   function shareMax() {
     const text = `${title}\n${url}\n\n${PROMO}`;
     window.open(
@@ -124,14 +145,24 @@ export function ShareButton({
             </div>
 
             <p className="mb-4 text-sm text-muted-foreground">
-              Для стены или группы ВК — кнопка «ВКонтакте». Системный шаринг
-              чаще открывает только личные чаты.
+              На стену — кнопка ниже. В группу Boro лот уже уходит сам; откройте
+              пост там, если нужен репост друзьям.
             </p>
 
             <div className="grid gap-2">
-              <Button type="button" className="h-11 w-full" onClick={shareVk}>
-                ВКонтакте — стена / группа
+              <Button type="button" className="h-11 w-full" onClick={shareVkWall}>
+                ВКонтакте — на стену
               </Button>
+              {vkPostUrl ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-full"
+                  onClick={openVkGroupPost}
+                >
+                  Открыть пост в группе Boro
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
